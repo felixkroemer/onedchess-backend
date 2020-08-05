@@ -1,7 +1,9 @@
 from flask import Flask
 from dotenv import load_dotenv
-from .extensions import game
+from flask_socketio import SocketIO
 from flask_cors import CORS
+from .extensions import game, socketio
+import sys
 
 
 def create_app(config_file):
@@ -10,10 +12,10 @@ def create_app(config_file):
     load_dotenv('.env')
     app.config.from_pyfile('settings.py')
 
-    origins = app.config.get('CORS_ORIGIN_WHITELIST', '*')
-    CORS(app, supports_credentials=True, origins=origins)
+    CORS(app, supports_credentials=True)
 
-    game.init(app)
+    socketio.init_app(app, cors_allowed_origins="*")
+    game.init(app, socketio)
 
     from . import views
     app.register_blueprint(views.bp)
