@@ -1,6 +1,7 @@
 from .extensions import game
 from .extensions import socketio
-from flask_socketio import emit
+from flask_socketio import join_room
+import time
 
 from flask import Blueprint, session, jsonify, abort, request
 from string import ascii_letters
@@ -34,6 +35,13 @@ def setPartnerID():
     else:
         abort(503)
 
-# @socketio.on('receiveMove')
-# def receiveMove(data):
-#     return 0
+
+@socketio.on('registerSID')
+def connect():
+    join_room(request.sid)
+    game.registerSID(session["id"], request.sid)
+
+
+@socketio.on('makeMove')
+def makeMove(data):
+    game.makeMove(session["id"], data["from"], data["to"])
