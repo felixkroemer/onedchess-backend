@@ -1,20 +1,17 @@
 import datetime
 import random
 import string
+from .player import Player
 
 
 class Game():
 
     def __init__(self):
-        self._app = None
         self._socket = None
         self._idleIDs = {}
-        self._games = {}
-        self._partners = {}
         return
 
     def init(self, app, socket):
-        self._app = app
         self._socket = socket
         return
 
@@ -25,43 +22,39 @@ class Game():
             id = ''.join([random.choice(string.ascii_uppercase)
                           for i in range(5)])
             if not self.hasID(id):
-                self._idleIDs[id] = [datetime.datetime.now(), None]
+                self._idleIDs[id] = Player(datetime.datetime.now())
                 return id
             tries += 1
             if tries >= 20:
                 return None
 
     def hasID(self, id):
-        if id in self._idleIDs:
-            return True
-        else:
-            return False
+        return id in self._idleIDs
 
     def cleanIDs(self):
         now = datetime.datetime.now()
         for x in self._idleIDs.copy():
-            diff = now - self._idleIDs[x][0]
+            diff = now - self._idleIDs[x].dt
             if(diff.days > 0 or diff.seconds > 1200):
                 del self._idleIDs[x]
         self._lastCleanup = now
 
     def registerSID(self, id, sid):
-        self._idleIDs[id][1] = sid
+        self._idleIDs[id].sid = sid
 
     def createGame(self, playerID, partnerID):
         if(playerID in self._idleIDs and partnerID in self._idleIDs):
-            if(self._idleIDs[playerID][1] == None or self._idleIDs[partnerID][1] == None):
+            if self._idleIDs[playerID].sid == None or self._idleIDs[partnerID].sid == None:
                 return False
-            self._games[playerID] = {"playerTurn": True, "partner": partnerID}
-            self._games[playerID]["sids"] = (
-                self._idleIDs[playerID][1], self._idleIDs[partnerID][1])
-            self._idleIDs.pop(playerID)
-            self._idleIDs.pop(partnerID)
-            self._partners[partnerID] = playerID
+            game = {"white": playerID, "black": partnerID, "whitesTurn": True}
+            self._idleIDs[playerID].game = game
+            self._idleIDs[playerID].partner = self._idleIDs[partnerID]
+            self._idleIDs[partnerID].game = game
+            self._idleIDs[partnerID].partner = self._idleIDs[playerID]
             self.sendMessage(
-                self._games[playerID]["sids"][0], "startGame", {"moveFirst": True})
+                self._idleIDs[playerID].sid, "startGame", {"moveFirst": True, "partnerID": partnerID})
             self.sendMessage(
-                self._games[playerID]["sids"][1], "startGame", {"moveFirst": False})
+                self._idleIDs[partnerID].sid, "startGame", {"moveFirst": False, "partnerID": playerID})
             return True
         else:
             return False
@@ -74,17 +67,13 @@ class Game():
 
     def makeMove(self, id, i, j):
         # TODO add move validation on server side
-        game = None
-        if id in self._games:
-            game = self._games[id]
-            isPlayer = True
-        if id in self._partners:
-            game = self._games[self._partners[id]]
-            isPlayer = False
-        if not game:
-            return
-        if game["playerTurn"] != isPlayer:
-            return
-        receiver = game["sids"][1] if isPlayer else game["sids"][0]
-        game["playerTurn"] = not game["playerTurn"]
+        if id in self._idleIDs and self._idleIDs[id].game != None:
+            game = self._idleIDs[id].game
+        else:
+            return False
+        if game["whitesTurn"] != (game["white"] == id):
+            return False
+        receiver = self._idleIDs[id].partner.sid
+        game["whitesTurn"] = not game["whitesTurn"]
+        self._idleIDs[id].dt = datetime.datetime.now()
         self.sendMessage(receiver, "move", {"from": i, "to": j})

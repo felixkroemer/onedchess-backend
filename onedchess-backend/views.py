@@ -38,10 +38,14 @@ def setPartnerID():
 
 @socketio.on('registerSID')
 def connect():
-    join_room(request.sid)
-    game.registerSID(session["id"], request.sid)
+    if "id" in session and game.hasID(session['id']):
+        join_room(request.sid)
+        game.registerSID(session["id"], request.sid)
 
 
 @socketio.on('makeMove')
 def makeMove(data):
-    game.makeMove(session["id"], data["from"], data["to"])
+    if "id" in session:
+        game.makeMove(session["id"], data["from"], data["to"])
+    else:
+        abort(500)
