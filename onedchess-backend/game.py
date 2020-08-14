@@ -41,20 +41,43 @@ class Game():
 
     def registerSID(self, id, sid):
         self._idleIDs[id].sid = sid
+        game = self._idleIDs[id].game
+        if game:
+            player = self._idleIDs[id]
+            moveNext = game["whitesTurn"] == (game["white"] == id)
+            partnerID = game["black"] if game["white"] == id else game["white"]
+            self.sendMessage(
+                player.sid, "startGame", {"moveNext": moveNext, "field": game["field"],
+                                          "partnerID": partnerID, "whitesTurn": game["whitesTurn"]})
 
     def createGame(self, playerID, partnerID):
         if(playerID in self._idleIDs and partnerID in self._idleIDs):
             if self._idleIDs[playerID].sid == None or self._idleIDs[partnerID].sid == None:
                 return False
-            game = {"white": playerID, "black": partnerID, "whitesTurn": True}
+            field = [
+                (False, "ROOK"),
+                (False, "KNIGHT"),
+                (False, "KING"),
+                (False, "KNIGHT"),
+                (False, "ROOK"),
+                None,
+                None,
+                (True, "ROOK"),
+                (True, "KNIGHT"),
+                (True, "KING"),
+                (True, "KNIGHT"),
+                (True, "ROOK"),
+            ]
+            game = {"white": playerID, "black": partnerID,
+                    "whitesTurn": True, "field": field}
             self._idleIDs[playerID].game = game
             self._idleIDs[playerID].partner = self._idleIDs[partnerID]
             self._idleIDs[partnerID].game = game
             self._idleIDs[partnerID].partner = self._idleIDs[playerID]
             self.sendMessage(
-                self._idleIDs[playerID].sid, "startGame", {"moveFirst": True, "partnerID": partnerID})
+                self._idleIDs[playerID].sid, "startGame", {"moveNext": True, "partnerID": partnerID})
             self.sendMessage(
-                self._idleIDs[partnerID].sid, "startGame", {"moveFirst": False, "partnerID": playerID})
+                self._idleIDs[partnerID].sid, "startGame", {"moveNext": False, "partnerID": playerID})
             return True
         else:
             return False
@@ -69,6 +92,13 @@ class Game():
         # TODO add move validation on server side
         if id in self._idleIDs and self._idleIDs[id].game != None:
             game = self._idleIDs[id].game
+            field = game["field"]
+            switch = False
+            if field[i][1] == "ROOK" and field[j][1] == "KING" or field[i][1] == "KING" and field[j][1] == "ROOK":
+                temp = field[j]
+                switch = True
+            game["field"][j] = game["field"][i]
+            game["field"][i] = temp if switch else None
         else:
             return False
         if game["whitesTurn"] != (game["white"] == id):
