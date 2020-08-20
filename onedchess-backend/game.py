@@ -31,6 +31,9 @@ class Game():
     def hasID(self, id):
         return id in self._idleIDs
 
+    def getIDs(self):
+        return self._idleIDs.keys()
+
     def cleanIDs(self):
         now = datetime.datetime.now()
         for x in self._idleIDs.copy():
@@ -94,7 +97,7 @@ class Game():
             game = self._idleIDs[id].game
             field = game["field"]
             switch = False
-            if field[i][1] == "ROOK" and field[j][1] == "KING" or field[i][1] == "KING" and field[j][1] == "ROOK":
+            if field[j] and field[i][1] == "ROOK" and field[j][1] == "KING" or field[i][1] == "KING" and field[j][1] == "ROOK":
                 temp = field[j]
                 switch = True
             game["field"][j] = game["field"][i]
@@ -107,3 +110,11 @@ class Game():
         game["whitesTurn"] = not game["whitesTurn"]
         self._idleIDs[id].dt = datetime.datetime.now()
         self.sendMessage(receiver, "move", {"from": i, "to": j})
+
+    def quitGame(self, id):
+        receiver = self._idleIDs[id].partner.sid
+        self._idleIDs[id].partner.game = None
+        self._idleIDs[id].partner.partner = None
+        self._idleIDs[id].game = None
+        self._idleIDs[id].partner = None
+        self.sendMessage(receiver, "quitGame")
